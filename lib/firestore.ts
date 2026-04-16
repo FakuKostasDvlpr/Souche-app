@@ -208,6 +208,10 @@ export function subscribeToHistorialPuntos(
   );
 }
 
+function normalizeTorneo(data: DocumentData, id: string): Torneo {
+  return { ...data, id, puntosParticipacion: data.puntosParticipacion ?? 0, cerrado: data.cerrado ?? false } as Torneo;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Torneos
 // ─────────────────────────────────────────────────────────────────────────────
@@ -221,7 +225,7 @@ export async function getTorneos(onlyActive = false): Promise<Torneo[]> {
       )
     : query(collection(db, "torneos"), orderBy("creadoEn", "desc"));
   const snap = await getDocs(q);
-  return snap.docs.map((d) => withId<Torneo>(d.data(), d.id));
+  return snap.docs.map((d) => normalizeTorneo(d.data(), d.id));
 }
 
 export function subscribeToTorneos(
@@ -236,14 +240,14 @@ export function subscribeToTorneos(
       )
     : query(collection(db, "torneos"), orderBy("creadoEn", "desc"));
   return onSnapshot(q, (snap) =>
-    cb(snap.docs.map((d) => withId<Torneo>(d.data(), d.id)))
+    cb(snap.docs.map((d) => normalizeTorneo(d.data(), d.id)))
   );
 }
 
 export async function getTorneo(id: string): Promise<Torneo | null> {
   const snap = await getDoc(doc(db, "torneos", id));
   if (!snap.exists()) return null;
-  return withId<Torneo>(snap.data(), snap.id);
+  return normalizeTorneo(snap.data(), snap.id);
 }
 
 export async function createTorneo(
@@ -290,15 +294,23 @@ export async function cerrarTorneo(
     )
   );
   let count = 0;
+  const errors: string[] = [];
   for (const d of snap.docs) {
     const entrada = d.data();
-    await addPuntosToUser(
-      entrada.usuarioUid,
-      puntosParticipacion,
-      `Participó en ${torneoNombre}`,
-      "torneo"
-    );
-    count++;
+    try {
+      await addPuntosToUser(
+        entrada.usuarioUid,
+        puntosParticipacion,
+        `Participó en ${torneoNombre}`,
+        "torneo"
+      );
+      count++;
+    } catch (e) {
+      errors.push(entrada.usuarioUid);
+    }
+  }
+  if (errors.length > 0) {
+    console.warn(`cerrarTorneo: failed to grant points to ${errors.length} users:`, errors);
   }
   await updateDoc(doc(db, "torneos", torneoId), {
     cerrado: true,
