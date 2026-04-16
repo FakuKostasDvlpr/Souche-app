@@ -5,13 +5,12 @@ import {
 } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 
-async function uploadImage(
-  path: string,
-  uri: string,
-  quality: number
-): Promise<string> {
+async function uploadImage(path: string, uri: string): Promise<string> {
+  if (!uri) throw new Error("Image URI is required");
   const response = await fetch(uri);
+  if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
   const blob = await response.blob();
+  if (!blob.size) throw new Error("Image blob is empty");
   const storageRef = ref(storage, path);
   await new Promise<void>((resolve, reject) => {
     const task = uploadBytesResumable(storageRef, blob);
@@ -25,19 +24,19 @@ export async function uploadComprobante(
   entradaId: string,
   uri: string
 ): Promise<string> {
-  return uploadImage(`comprobantes/${uid}/${entradaId}.jpg`, uri, 0.7);
+  return uploadImage(`comprobantes/${uid}/${entradaId}.jpg`, uri);
 }
 
 export async function uploadBurgerPhoto(
   menuItemId: string,
   uri: string
 ): Promise<string> {
-  return uploadImage(`menu/${menuItemId}.jpg`, uri, 0.9);
+  return uploadImage(`menu/${menuItemId}.jpg`, uri);
 }
 
 export async function uploadAnuncioPhoto(
   novedadId: string,
   uri: string
 ): Promise<string> {
-  return uploadImage(`novedades/${novedadId}.jpg`, uri, 0.9);
+  return uploadImage(`novedades/${novedadId}.jpg`, uri);
 }
