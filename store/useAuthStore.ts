@@ -8,6 +8,7 @@ export interface UserProfile {
   nombre: string;
   apellido: string;
   email: string;
+  foto: string | null;
   genero: "hombre" | "mujer" | "no_especificado";
   rol: UserRole;
   puntos: number;
@@ -15,6 +16,9 @@ export interface UserProfile {
   torneoGanado: string | null;
   emailVerified: boolean;
   fcmToken: string | null;
+  expoPushToken: string | null;
+  loginMethod: "email" | "google" | "apple" | null;
+  ip: string | null;
   creadoEn: Date | null;
 }
 
