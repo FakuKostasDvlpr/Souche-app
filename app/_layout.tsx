@@ -1,5 +1,6 @@
 import "../global.css";
 import { useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { onAuthStateChanged } from "firebase/auth";
@@ -11,23 +12,50 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts, BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AppSplash } from "@/components/ui/AppSplash";
 import { updateExpoPushToken } from "@/lib/firestore";
 
 SplashScreen.preventAutoHideAsync();
 
+// Configure how notifications appear when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+if (Platform.OS === "android") {
+  Notifications.setNotificationChannelAsync("default", {
+    name: "default",
+    importance: Notifications.AndroidImportance.MAX,
+  });
+}
+
+const registeredTokenUids = new Set<string>();
+
 async function registerPushToken(uid: string) {
-  const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== "granted") return;
-  const token = await Notifications.getExpoPushTokenAsync();
-  if (token?.data) {
-    await updateExpoPushToken(uid, token.data);
+  if (registeredTokenUids.has(uid)) return;
+  try {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== "granted") return;
+    const token = await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+    });
+    if (token?.data) {
+      await updateExpoPushToken(uid, token.data);
+      registeredTokenUids.add(uid);
+    }
+  } catch (e) {
+    console.warn("registerPushToken failed:", e);
   }
 }
 
 // Set to true to skip Firebase auth and go straight to Home (for UI development)
-const DEV_SKIP_AUTH = false;
+const DEV_SKIP_AUTH = true;
 
 const SPLASH_MIN_MS = 1000;
 
