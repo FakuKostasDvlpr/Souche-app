@@ -4,7 +4,48 @@
 
 **Spec:** `docs/superpowers/specs/2026-04-20-achievement-and-live-data-design.md`
 
-**Orden de ejecución:** Plan 1 → Plan 2 → Plan 3. Cada uno depende del anterior.
+**Orden de ejecución:** Pre-Flight → Plan 1 → Plan 2 → Plan 3. Cada uno depende del anterior.
+
+---
+
+## 🚦 Pre-Flight — Validaciones Firebase + Context7 (2026-04-20)
+
+> Bloqueadores encontrados al validar los 3 planes contra Firebase MCP + Context7. Resolver ANTES de T1.1.
+
+- [ ] **PF.1** — **Rules admin-write.** Rules actuales (`users/{userId}` match) permiten write solo al dueño. Rompe `setUserAsGanador`, `addPuntosToUser`, `cerrarTorneo` desde admin. Crear `firestore.rules` en repo root:
+  ```
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      function isSuperadmin() {
+        return request.auth != null &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rol == "superadmin";
+      }
+      match /users/{userId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && (request.auth.uid == userId || isSuperadmin());
+      }
+      match /{document=**} {
+        allow read, write: if request.auth != null;
+      }
+    }
+  }
+  ```
+  Deploy: `npx firebase-tools deploy --only firestore:rules --project souche-9ff0b`.
+- [ ] **PF.2** — **firebase.json root.** Si no existe en repo root, crear:
+  ```json
+  {
+    "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" },
+    "functions": [{ "source": "functions" }]
+  }
+  ```
+- [ ] **PF.3** — **firestore.indexes.json.** Crear archivo vacío `{ "indexes": [], "fieldOverrides": [] }`. (Plan 3 T5 fue reescrito para evitar índice compuesto; no hacen falta índices adicionales.)
+- [ ] **PF.4** — **Context7 check librerías.** Confirmado (2026-04-20):
+  - `@testing-library/react-native` v13.3+ tiene `renderHook` sync — reemplaza `@testing-library/react-hooks` (deprecado en React 19). Plan 2 T4 ya parcheado.
+  - Reanimated 4.1.5: `useSharedValue`, `withSequence`, `withTiming`, `runOnJS` — API estable, compatible con Plan 1.
+  - Firebase JS SDK v12: `where != null + orderBy` combinación requiere índice compuesto. Plan 3 T5 reescrito con `orderBy creadoEn desc + limit 20 + client filter`.
+
+**Gate:** PF.1-3 deployed antes de T1.1. PF.4 verificado.
 
 ---
 
@@ -20,7 +61,7 @@
 - [ ] **T1.5** — `components/ui/achievement/AchievementShimmer.tsx` — Sweep diagonal.
 - [ ] **T1.6** — `components/ui/achievement/AchievementOverlay.tsx` — FSM 5 fases + haptics.
 - [ ] **T1.7** — `hooks/useGanadorListener.ts` — onSnapshot users/{uid} + AsyncStorage dedupe.
-- [ ] **T1.8** — Extender `lib/firestore.ts` — `elegirGanadorDeTorneo` con writeBatch.
+- [ ] **T1.8** — Extender `lib/firestore.ts` — `elegirGanadorDeTorneo` con writeBatch. **Requiere PF.1 deployed** (rules admin-write sobre `users/{uid}`).
 - [ ] **T1.9** — Modificar `app/_layout.tsx` — Montar `AchievementProvider` + `useGanadorListener`.
 - [ ] **T1.10** — Manual QA + crear PR `feat/achievement-component`.
 

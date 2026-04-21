@@ -259,7 +259,9 @@ git commit -m "feat(torneo): add TorneoEstado derived state fn with tests"
 Crear `tests/unit/useCountdown.test.ts`:
 
 ```typescript
-import { renderHook, act } from "@testing-library/react-hooks";
+// Context7-verified (2026-04-20): @testing-library/react-hooks está deprecado para React 19.
+// Usar renderHook sync de @testing-library/react-native v13.3+.
+import { renderHook, act } from "@testing-library/react-native";
 import { useCountdown } from "@/hooks/useCountdown";
 
 jest.useFakeTimers();
@@ -327,7 +329,9 @@ describe("useCountdown", () => {
 - [ ] **Step 2: Install test deps si faltan**
 
 ```bash
-npm install --save-dev @testing-library/react-hooks
+# @testing-library/react-native ya debería estar instalado por Plan 1 T1.
+# Verificá versión ≥ 13.3.0 (renderHook sync). Si falta:
+npm install --save-dev @testing-library/react-native
 ```
 
 - [ ] **Step 3: Run test to verify fail**

@@ -298,23 +298,29 @@ export interface UltimoCampeon {
   puntosCampeon: number;
 }
 
+// Context7-verified (2026-04-20): `where("x","!=",null) + orderBy("x") + orderBy("y")`
+// requiere índice compuesto. Firebase MCP confirmó que firestore.indexes.json está vacío
+// (ningún compuesto desplegado). Para evitar deploy-blocker, usamos orderBy creadoEn desc
+// con un limit generoso y filtramos ganadorUid del lado cliente. Funciona mientras haya
+// < ~50 torneos totales; escalá a índice compuesto después si hace falta.
 export function subscribeToUltimoCampeon(
   cb: (c: UltimoCampeon | null) => void
 ): Unsubscribe {
   const q = query(
     collection(db, "torneos"),
-    where("ganadorUid", "!=", null),
-    orderBy("ganadorUid"),
     orderBy("creadoEn", "desc"),
-    limit(1)
+    limit(20)
   );
   return onSnapshot(q, async (snap) => {
-    if (snap.empty) {
+    const conGanador = snap.docs.find((d) => {
+      const data = d.data();
+      return typeof data.ganadorUid === "string" && data.ganadorUid.length > 0;
+    });
+    if (!conGanador) {
       cb(null);
       return;
     }
-    const doc0 = snap.docs[0];
-    const torneo = normalizeTorneo(doc0.data(), doc0.id);
+    const torneo = normalizeTorneo(conGanador.data(), conGanador.id);
     if (!torneo.ganadorUid) {
       cb(null);
       return;
