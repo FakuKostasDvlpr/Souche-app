@@ -1,54 +1,42 @@
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import React from "react";
+import { View, Text, ScrollView, Pressable, Alert, Image, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Defs, RadialGradient, Stop, Rect as SvgRect } from "react-native-svg";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { signOut } from "firebase/auth";
+import * as Haptics from "expo-haptics";
 import { auth } from "@/lib/firebase";
 import { useAuthStore } from "@/store/useAuthStore";
-import { AnimatedView, AnimatedPressable, fadeDown, useScalePress } from "@/lib/animations";
-import { IconSoucheLogo } from "@/components/icons";
-import { AccordionItem } from "@/components/ui/accordion-item";
+import { useThemeColors } from "@/lib/theme";
+import { useThemeStore } from "@/store/useThemeStore";
+import { AnimatedView, fadeDown } from "@/lib/animations";
+import { useAchievement } from "@/contexts/AchievementContext";
+
+type ThemeOptionKey = "light" | "dark" | "system";
+type RowTone = "neutral" | "primary" | "gold";
+
+const MEMBER_GLOW_SIZE = 260;
 
 export default function ConfigScreen() {
   const router = useRouter();
+  const c = useThemeColors();
   const profile = useAuthStore((s) => s.profile);
   const reset = useAuthStore((s) => s.reset);
   const isAdmin = profile?.rol === "superadmin";
 
-  const MenuItem = ({
-    icon,
-    label,
-    value,
-    onPress,
-    color = "#fff",
-  }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    value?: string;
-    onPress: () => void;
-    color?: string;
-  }) => (
-    <Pressable
-      className="flex-row items-center justify-between py-4 active:opacity-70"
-      onPress={onPress}
-    >
-      <View className="flex-row items-center gap-3">
-        <View className="h-9 w-9 items-center justify-center rounded-xl bg-souche-gray-800">
-          <Ionicons name={icon} size={18} color={color} />
-        </View>
-        <Text className="text-base font-semibold" style={{ color }}>
-          {label}
-        </Text>
-      </View>
-      <View className="flex-row items-center gap-2">
-        {value && (
-          <Text className="text-sm text-souche-gray-500">{value}</Text>
-        )}
-        <Ionicons name="chevron-forward" size={16} color="#525252" />
-      </View>
-    </Pressable>
-  );
+  const theme = useThemeStore((s) => s.theme);
+  const manualOverride = useThemeStore((s) => s.manualOverride);
+  const setTheme = useThemeStore((s) => s.setTheme);
+  const resetToSystem = useThemeStore((s) => s.resetToSystem);
+
+  const activeTheme: ThemeOptionKey = !manualOverride ? "system" : theme;
+
+  const handleThemeChange = (mode: ThemeOptionKey) => {
+    Haptics.selectionAsync().catch(() => {});
+    if (mode === "system") resetToSystem();
+    else setTheme(mode);
+  };
 
   const handleLogout = () => {
     Alert.alert("Cerrar sesión", "¿Seguro que querés salir?", [
@@ -64,161 +52,632 @@ export default function ConfigScreen() {
     ]);
   };
 
-  return (
-    <SafeAreaView className="flex-1 bg-souche-black" edges={["top"]}>
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Header */}
-        <AnimatedView entering={fadeDown(0)} className="px-5 pt-4 pb-2">
-          <Text className="text-2xl font-black text-white tracking-tight">Configuración</Text>
-        </AnimatedView>
+  const { showAchievement } = useAchievement();
 
-        {/* Profile card */}
-        <AnimatedView entering={fadeDown(80)} className="mx-5 mt-2 flex-row items-center gap-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
-          <LinearGradient
-            colors={["#15783D", "#0f5a2d"]}
-            style={{ width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" }}
+  const triggerDemoToast = () => {
+    showAchievement({
+      title: "¡CAMPEÓN!",
+      subtitle: "BBQ Classic Cup · +500 pts",
+      variant: "champion",
+    });
+  };
+
+  const firstName = profile?.nombre?.split(" ")?.[0] ?? "Miembro";
+  const displayPoints = profile?.puntos ?? 0;
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={["top"]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 140 }}
+      >
+        {/* Header */}
+        <AnimatedView
+          entering={fadeDown(0)}
+          style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18 }}
+        >
+          <Text
+            style={{
+              color: c.fgMuted,
+              fontFamily: "Inter_500Medium",
+              fontSize: 11,
+              letterSpacing: 3.2,
+              textTransform: "uppercase",
+            }}
           >
-            <Text className="text-xl font-black text-white">
-              {profile?.nombre?.charAt(0) ?? "?"}
+            Tu app
+          </Text>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: 6 }}>
+            <Text
+              style={{
+                color: c.fg,
+                fontFamily: "SpaceGrotesk_700Bold",
+                fontSize: 38,
+                letterSpacing: -1,
+                textTransform: "uppercase",
+              }}
+            >
+              Ajustes
             </Text>
-          </LinearGradient>
-          <View className="flex-1">
-            <Text className="text-lg font-black text-white tracking-tight">
-              {profile?.nombre} {profile?.apellido}
+            <Text
+              style={{
+                color: c.lime,
+                fontFamily: "SpaceGrotesk_700Bold",
+                fontSize: 38,
+                letterSpacing: -1,
+              }}
+            >
+              .
             </Text>
-            <Text className="text-sm text-neutral-400">{profile?.email}</Text>
-            {isAdmin && (
-              <View className="mt-1.5 self-start rounded-full bg-souche-gold/20 px-3 py-0.5">
-                <Text className="text-xs font-bold text-souche-gold">SUPERADMIN</Text>
-              </View>
-            )}
           </View>
         </AnimatedView>
 
-        {/* Puntos badge */}
-        <AnimatedView entering={fadeDown(160)} className="mx-5 mt-4 overflow-hidden rounded-2xl">
-          <LinearGradient
-            colors={["rgba(21,120,61,0.12)", "rgba(21,120,61,0.04)"]}
-            style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, borderRadius: 16, borderWidth: 1, borderColor: "rgba(21,120,61,0.15)" }}
+        {/* Member card */}
+        <AnimatedView entering={fadeDown(60)} style={{ paddingHorizontal: 20 }}>
+          <View
+            style={{
+              borderRadius: 28,
+              borderWidth: 1,
+              borderColor: c.border,
+              backgroundColor: c.surface,
+              padding: 18,
+              overflow: "hidden",
+            }}
           >
-            <View className="flex-row items-center gap-3">
-              <Ionicons name="star" size={20} color="#15783D" />
-              <Text className="text-sm font-bold text-souche-green">Puntos Souche</Text>
-            </View>
-            <Text className="text-xl font-black text-souche-green">
-              {profile?.puntos ?? 0}
-            </Text>
-          </LinearGradient>
-        </AnimatedView>
+            {/* Soft radial glow — fades evenly into the card surface */}
+            <MemberGlow color={c.lime} />
 
-        {/* Account section — users only see puntos/entradas */}
-        {!isAdmin && (
-          <AnimatedView entering={fadeDown(240)} className="mx-5 mt-6">
-            <Text className="mb-2 text-xs font-bold uppercase tracking-widest text-neutral-500">
-              Mi cuenta
-            </Text>
-            <View className="rounded-2xl border border-neutral-800 bg-neutral-900 px-4">
-              <MenuItem
-                icon="person-outline"
-                label="Mi Perfil"
-                onPress={() => router.push("/(user)/perfil")}
-              />
-              <View className="h-px bg-souche-gray-800" />
-              <MenuItem
-                icon="star-outline"
-                label="Mis Puntos"
-                value={`${profile?.puntos ?? 0} pts`}
-                onPress={() => router.push("/(user)/puntos")}
-              />
-              <View className="h-px bg-souche-gray-800" />
-              <MenuItem
-                icon="ticket-outline"
-                label="Mis Entradas"
-                onPress={() => router.push("/(user)/entradas/mis-entradas")}
-              />
-            </View>
-          </AnimatedView>
-        )}
-
-        {/* Admin — profile only */}
-        {isAdmin && (
-          <AnimatedView entering={fadeDown(240)} className="mx-5 mt-6">
-            <Text className="mb-2 text-xs font-bold uppercase tracking-widest text-neutral-500">
-              Mi cuenta
-            </Text>
-            <View className="rounded-2xl border border-neutral-800 bg-neutral-900 px-4">
-              <MenuItem
-                icon="person-outline"
-                label="Mi Perfil"
-                onPress={() => router.push("/(user)/perfil")}
-              />
-            </View>
-          </AnimatedView>
-        )}
-
-        {/* Admin panel — Accordion */}
-        {isAdmin && (
-          <AnimatedView entering={fadeDown(320)} className="mx-5 mt-6 rounded-2xl border border-souche-gold/20 bg-neutral-900 px-4">
-            <AccordionItem
-              title="Panel Admin"
-              icon="shield-outline"
-              iconColor="#F7AE00"
-              defaultOpen={true}
-              titleClassName="text-souche-gold font-bold"
-            >
-              <View className="pb-1">
-                <MenuItem
-                  icon="calendar-outline"
-                  label="Gestionar Eventos"
-                  color="#F7AE00"
-                  onPress={() => router.push("/(user)/admin/alta-entradas")}
-                />
-                <View className="h-px bg-souche-gray-800" />
-                <MenuItem
-                  icon="people-outline"
-                  label="CRM Usuarios"
-                  color="#F7AE00"
-                  onPress={() => router.push("/(user)/admin/usuarios")}
-                />
-                <View className="h-px bg-souche-gray-800" />
-                <MenuItem
-                  icon="trophy-outline"
-                  label="Ganadores"
-                  color="#F7AE00"
-                  onPress={() => router.push("/(user)/admin/ganadores")}
-                />
-                <View className="h-px bg-souche-gray-800" />
-                <MenuItem
-                  icon="fast-food-outline"
-                  label="CRM Menú"
-                  color="#F7AE00"
-                  onPress={() => router.push("/(user)/admin/crm-menu")}
-                />
-                <View className="h-px bg-souche-gray-800" />
-                <MenuItem
-                  icon="megaphone-outline"
-                  label="Anuncios"
-                  color="#F7AE00"
-                  onPress={() => router.push("/(user)/admin/comprobantes")}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+              {/* Avatar */}
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 20,
+                  borderWidth: 2,
+                  borderColor: c.limeAlpha(0.55),
+                  backgroundColor: c.bg,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  shadowColor: c.lime,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.55,
+                  shadowRadius: 14,
+                }}
+              >
+                <Image
+                  source={require("@/assets/logo/ilust.png")}
+                  style={{ width: 56, height: 56 }}
+                  resizeMode="contain"
                 />
               </View>
-            </AccordionItem>
+
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  style={{
+                    color: c.fgMuted,
+                    fontFamily: "Inter_500Medium",
+                    fontSize: 10,
+                    letterSpacing: 2.4,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Miembro
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    color: c.fg,
+                    fontFamily: "SpaceGrotesk_700Bold",
+                    fontSize: 22,
+                    letterSpacing: -0.5,
+                    textTransform: "uppercase",
+                    marginTop: 2,
+                  }}
+                >
+                  {firstName}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{ color: c.fgDim, fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 2 }}
+                >
+                  {profile?.email ?? "—"}
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={() => router.push("/(user)/settings/personal" as any)}
+                accessibilityLabel="Editar perfil"
+                hitSlop={6}
+                style={({ pressed }) => ({
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  backgroundColor: c.bg,
+                  opacity: pressed ? 0.85 : 1,
+                  transform: [{ scale: pressed ? 0.95 : 1 }],
+                })}
+              >
+                <Ionicons name="chevron-forward" size={16} color={c.fgMuted} />
+              </Pressable>
+            </View>
+
+            {/* Stats */}
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 8,
+                marginTop: 16,
+                paddingTop: 14,
+                borderTopWidth: 1,
+                borderTopColor: c.borderLight,
+              }}
+            >
+              <StatCell c={c} icon="sparkles" label="Puntos" value={String(displayPoints)} />
+              <StatCell c={c} icon="medal-outline" label="Logros" value="12" />
+              <StatCell c={c} icon="star-outline" label="Ranking" value="#47" />
+            </View>
+          </View>
+        </AnimatedView>
+
+        {/* Apariencia */}
+        <AnimatedView entering={fadeDown(140)} style={{ paddingHorizontal: 20, marginTop: 24 }}>
+          <SectionLabel c={c}>Apariencia</SectionLabel>
+          <View
+            style={{
+              borderRadius: 28,
+              borderWidth: 1,
+              borderColor: c.border,
+              backgroundColor: c.surface,
+              padding: 16,
+            }}
+          >
+            <Text
+              style={{
+                color: c.fgDim,
+                fontFamily: "Inter_400Regular",
+                fontSize: 12,
+                marginBottom: 12,
+              }}
+            >
+              Elegí el modo en el que te sentís más cómodo.
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <ThemeChip
+                c={c}
+                icon="sunny-outline"
+                label="Claro"
+                active={activeTheme === "light"}
+                onPress={() => handleThemeChange("light")}
+              />
+              <ThemeChip
+                c={c}
+                icon="moon-outline"
+                label="Oscuro"
+                active={activeTheme === "dark"}
+                onPress={() => handleThemeChange("dark")}
+              />
+              <ThemeChip
+                c={c}
+                icon="phone-portrait-outline"
+                label="Sistema"
+                active={activeTheme === "system"}
+                onPress={() => handleThemeChange("system")}
+              />
+            </View>
+          </View>
+        </AnimatedView>
+
+        {/* Preferencias */}
+        <AnimatedView entering={fadeDown(200)} style={{ paddingHorizontal: 20, marginTop: 22 }}>
+          <SectionLabel c={c}>Preferencias</SectionLabel>
+          <View
+            style={{
+              borderRadius: 28,
+              borderWidth: 1,
+              borderColor: c.border,
+              backgroundColor: c.surface,
+              overflow: "hidden",
+            }}
+          >
+            <SettingsRow
+              c={c}
+              icon="person-outline"
+              title="Datos personales"
+              subtitle="Nombre, email, teléfono"
+              onPress={() => router.push("/(user)/settings/personal" as any)}
+            />
+            <Divider c={c} />
+            <SettingsRow
+              c={c}
+              icon="trophy-outline"
+              title="Probar logro"
+              subtitle="Dispara un toast de achievement"
+              tone="primary"
+              onPress={triggerDemoToast}
+            />
+          </View>
+        </AnimatedView>
+
+        {/* Admin panel */}
+        {isAdmin && (
+          <AnimatedView entering={fadeDown(240)} style={{ paddingHorizontal: 20, marginTop: 22 }}>
+            <SectionLabel c={c} color={c.gold}>
+              Panel Admin
+            </SectionLabel>
+            <View
+              style={{
+                borderRadius: 28,
+                borderWidth: 1,
+                borderColor: c.border,
+                backgroundColor: c.surface,
+                overflow: "hidden",
+              }}
+            >
+              <SettingsRow c={c} icon="document-text-outline" title="Comprobantes" tone="gold" onPress={() => router.push("/(user)/admin/comprobantes" as any)} />
+              <Divider c={c} />
+              <SettingsRow c={c} icon="trophy-outline" title="CRM Torneos" tone="gold" onPress={() => router.push("/(user)/admin/crm-torneos" as any)} />
+              <Divider c={c} />
+              <SettingsRow c={c} icon="fast-food-outline" title="CRM Burgers" tone="gold" onPress={() => router.push("/(user)/admin/crm-burgers" as any)} />
+              <Divider c={c} />
+              <SettingsRow c={c} icon="people-outline" title="CRM Usuarios" tone="gold" onPress={() => router.push("/(user)/admin/usuarios" as any)} />
+              <Divider c={c} />
+              <SettingsRow c={c} icon="flash-outline" title="Puntos" tone="gold" onPress={() => router.push("/(user)/admin/points" as any)} />
+              <Divider c={c} />
+              <SettingsRow c={c} icon="megaphone-outline" title="Anuncios" tone="gold" onPress={() => router.push("/(user)/admin/anuncios" as any)} />
+            </View>
           </AnimatedView>
         )}
 
-        {/* Logout */}
-        <AnimatedView entering={fadeDown(400)} className="mx-5 mt-6 mb-12">
-          <Pressable
-            className="flex-row items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 py-4 active:opacity-80"
-            onPress={handleLogout}
+        {/* Soporte */}
+        <AnimatedView entering={fadeDown(280)} style={{ paddingHorizontal: 20, marginTop: 22 }}>
+          <SectionLabel c={c}>Soporte</SectionLabel>
+          <View
+            style={{
+              borderRadius: 28,
+              borderWidth: 1,
+              borderColor: c.border,
+              backgroundColor: c.surface,
+              overflow: "hidden",
+            }}
           >
-            <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-            <Text className="text-base font-bold text-red-500">
+            <SettingsRow
+              c={c}
+              icon="help-circle-outline"
+              title="Centro de ayuda"
+              subtitle="Preguntas frecuentes y contacto"
+              onPress={() => router.push("/(user)/settings/help" as any)}
+            />
+            <Divider c={c} />
+            <SettingsRow
+              c={c}
+              icon="shield-checkmark-outline"
+              title="Privacidad y términos"
+              subtitle="Lo que tenés que saber"
+              onPress={() => router.push("/(user)/settings/privacy" as any)}
+            />
+          </View>
+        </AnimatedView>
+
+        {/* Logout */}
+        <AnimatedView entering={fadeDown(340)} style={{ paddingHorizontal: 20, marginTop: 26 }}>
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              height: 54,
+              borderRadius: 18,
+              borderWidth: 1,
+              borderColor: "rgba(255,59,48,0.35)",
+              backgroundColor: "rgba(255,59,48,0.10)",
+              opacity: pressed ? 0.85 : 1,
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            })}
+          >
+            <Ionicons name="log-out-outline" size={18} color="#FF3B30" />
+            <Text
+              style={{
+                color: "#FF3B30",
+                fontFamily: "Inter_700Bold",
+                fontSize: 14,
+                letterSpacing: 0.4,
+              }}
+            >
               Cerrar sesión
             </Text>
           </Pressable>
+          <Text
+            style={{
+              textAlign: "center",
+              marginTop: 14,
+              color: c.fgMuted,
+              fontFamily: "Inter_500Medium",
+              fontSize: 10,
+              letterSpacing: 3,
+              textTransform: "uppercase",
+            }}
+          >
+            Souche · v1.0.0
+          </Text>
         </AnimatedView>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/* ────────────────────────────────────────────────────────── */
+
+function SectionLabel({
+  children,
+  c,
+  color,
+}: {
+  children: React.ReactNode;
+  c: ReturnType<typeof useThemeColors>;
+  color?: string;
+}) {
+  return (
+    <Text
+      style={{
+        color: color ?? c.fgMuted,
+        fontFamily: "Inter_600SemiBold",
+        fontSize: 11,
+        letterSpacing: 3,
+        textTransform: "uppercase",
+        marginBottom: 10,
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+function StatCell({
+  c,
+  icon,
+  label,
+  value,
+}: {
+  c: ReturnType<typeof useThemeColors>;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: c.borderLight,
+        backgroundColor: c.bg,
+        padding: 10,
+        gap: 4,
+      }}
+    >
+      <Ionicons name={icon} size={14} color={c.lime} />
+      <Text
+        style={{
+          color: c.fg,
+          fontFamily: "SpaceGrotesk_700Bold",
+          fontSize: 18,
+          letterSpacing: -0.3,
+          lineHeight: 20,
+        }}
+      >
+        {value}
+      </Text>
+      <Text
+        style={{
+          color: c.fgMuted,
+          fontFamily: "Inter_500Medium",
+          fontSize: 9.5,
+          letterSpacing: 1.8,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function ThemeChip({
+  c,
+  icon,
+  label,
+  active,
+  onPress,
+}: {
+  c: ReturnType<typeof useThemeColors>;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      style={({ pressed }) => ({
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 18,
+        borderWidth: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        borderColor: active ? c.lime : c.borderLight,
+        backgroundColor: active ? c.limeAlpha(0.12) : c.bg,
+        shadowColor: active ? c.lime : "transparent",
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: active ? 0.4 : 0,
+        shadowRadius: active ? 14 : 0,
+        opacity: pressed ? 0.85 : 1,
+        transform: [{ scale: pressed ? 0.97 : 1 }],
+      })}
+    >
+      <Ionicons name={icon} size={20} color={active ? c.lime : c.fgMuted} />
+      <Text
+        style={{
+          color: active ? c.lime : c.fgMuted,
+          fontFamily: "Inter_600SemiBold",
+          fontSize: 12,
+          letterSpacing: 0.4,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SettingsRow({
+  c,
+  icon,
+  title,
+  subtitle,
+  onPress,
+  tone = "neutral",
+}: {
+  c: ReturnType<typeof useThemeColors>;
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle?: string;
+  onPress: () => void;
+  tone?: RowTone;
+}) {
+  const tokens =
+    tone === "primary"
+      ? {
+          bg: c.limeAlpha(0.12),
+          border: c.limeAlpha(0.45),
+          icon: c.lime,
+          title: c.fg,
+        }
+      : tone === "gold"
+        ? {
+            bg: `${c.gold}1F`,
+            border: `${c.gold}55`,
+            icon: c.gold,
+            title: c.gold,
+          }
+        : {
+            bg: "rgba(255,255,255,0.05)",
+            border: "rgba(255,255,255,0.10)",
+            icon: c.fg,
+            title: c.fg,
+          };
+
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
+      {({ pressed }) => (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            backgroundColor: pressed ? c.limeAlpha(0.06) : "transparent",
+          }}
+        >
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: tokens.bg,
+              borderWidth: 1,
+              borderColor: tokens.border,
+              marginRight: 14,
+            }}
+          >
+            <Ionicons name={icon} size={18} color={tokens.icon} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              numberOfLines={1}
+              style={{
+                color: tokens.title,
+                fontFamily: "Inter_700Bold",
+                fontSize: 15,
+                letterSpacing: -0.1,
+              }}
+            >
+              {title}
+            </Text>
+            {subtitle && (
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: c.fgDim,
+                  fontFamily: "Inter_400Regular",
+                  fontSize: 12.5,
+                  marginTop: 2,
+                }}
+              >
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color={c.fgMuted}
+            style={{ marginLeft: 10 }}
+          />
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+function Divider({ c }: { c: ReturnType<typeof useThemeColors> }) {
+  return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: c.borderLight, marginLeft: 74 }} />;
+}
+
+function MemberGlow({ color }: { color: string }) {
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        top: -MEMBER_GLOW_SIZE / 2 + 44,
+        right: -MEMBER_GLOW_SIZE / 2 + 40,
+        width: MEMBER_GLOW_SIZE,
+        height: MEMBER_GLOW_SIZE,
+      }}
+    >
+      <Svg width={MEMBER_GLOW_SIZE} height={MEMBER_GLOW_SIZE}>
+        <Defs>
+          <RadialGradient
+            id="memberGlow"
+            cx="50%"
+            cy="50%"
+            rx="50%"
+            ry="50%"
+            fx="50%"
+            fy="50%"
+          >
+            <Stop offset="0%" stopColor={color} stopOpacity={0.32} />
+            <Stop offset="35%" stopColor={color} stopOpacity={0.16} />
+            <Stop offset="70%" stopColor={color} stopOpacity={0.04} />
+            <Stop offset="100%" stopColor={color} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <SvgRect width={MEMBER_GLOW_SIZE} height={MEMBER_GLOW_SIZE} fill="url(#memberGlow)" />
+      </Svg>
+    </View>
   );
 }
