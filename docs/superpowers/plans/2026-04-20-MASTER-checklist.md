@@ -63,7 +63,7 @@
 - [x] **T1.7** — `hooks/useGanadorListener.ts` — onSnapshot users/{uid} + AsyncStorage dedupe. ✅
 - [x] **T1.8** — Extender `lib/firestore.ts` — `elegirGanadorDeTorneo` con writeBatch. ✅
 - [x] **T1.9** — Modificar `app/_layout.tsx` — Montar `AchievementProvider` + `useGanadorListener`. ✅
-- [ ] **T1.10** — Manual QA + crear PR `feat/achievement-component`.
+- [x] **T1.10** — Manual QA (overlay animación verificado 2026-04-21) + crear PR `feat/achievement-component`. ⚠️ PR pendiente.
 
 **Gate:** PR 1 mergeado antes de empezar Plan 2.
 
@@ -116,7 +116,29 @@
 - [ ] **T3.15** — Manual QA full (ticker, placeholder, countdown, champion, entradas).
 - [ ] **T3.16** — Crear PR `feat/live-data-wiring`.
 
-**Gate final:** QA aceptación con torneo real end-to-end.
+**Gate final Plan 3:** PR 3 mergeado antes de empezar Plan 4.
+
+---
+
+## 🏅 Plan 4 — Pantalla de Logros (historial del usuario)
+
+**Archivo:** `docs/superpowers/plans/YYYY-MM-DD-plan-4-pantalla-logros.md` _(pendiente de escribir — ejecutar writing-plans al llegar acá)._
+**Meta:** Apartado donde el usuario ve qué logros ganó — torneos, participaciones, milestones — con el mismo lenguaje visual del AchievementOverlay.
+
+**Data source:** `users/{uid}/historialPuntos` ya guarda `tipo: "ganador" | "torneo" | "runner" | "qr" | "perfil" | "registro"` + `motivo` + `puntos` + `fecha`. Plan 1 T8 escribe entradas `tipo: "ganador"` al elegir campeón. No hacen falta migrations.
+
+**Scope tentativo (detallar en brainstorming antes de arrancar):**
+- [ ] **T4.1** — Brainstorming + spec (qué se considera "logro", criterios de desbloqueo, qué data extra guardar — ¿badges, rarity, fecha, icono?).
+- [ ] **T4.2** — `hooks/useLogrosUsuario.ts` — subscribe a `historialPuntos` + agrupar por `tipo` / `motivo`.
+- [ ] **T4.3** — `app/(user)/logros.tsx` — pantalla lista + contador + empty state "Aún no ganaste logros".
+- [ ] **T4.4** — Componente `LogroCard` con mini-trofeo + motivo + fecha + puntos.
+- [ ] **T4.5** — Tab entry en `TabBar.tsx` o acceso desde Perfil/Puntos.
+- [ ] **T4.6** — Tap en logro → re-dispara `showAchievement` en modo "review" (opcional; full overlay o versión estática).
+- [ ] **T4.7** — Manual QA + PR `feat/pantalla-logros`.
+
+**Dependencias:** Plan 1 mergeado (historialPuntos con `tipo: "ganador"`), Plan 2 mergeado (cerrarTorneo genera entradas `tipo: "torneo"` masivas), Plan 3 opcional (BurgerImage reusable para iconos).
+
+**Gate:** Usuario con logros reales ve el historial poblado; usuario sin logros ve empty state elegante.
 
 ---
 
@@ -135,6 +157,7 @@
 - [ ] `BurgerImage` placeholder cuando `fotoUrl == null`.
 - [ ] Reduce motion degrada animación.
 - [ ] Animación no re-dispara al reabrir app (AsyncStorage dedupe).
+- [ ] Usuario puede ver historial de logros ganados en pantalla dedicada (Plan 4).
 
 ---
 
