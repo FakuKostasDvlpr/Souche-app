@@ -9,36 +9,60 @@ import { auth, db } from "@/lib/firebase";
 import { useAuthStore, type UserProfile } from "@/store/useAuthStore";
 import { useThemeStore } from "@/store/useThemeStore";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useFonts, BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
+import { useFonts } from "expo-font";
+import { BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
+import {
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from "@expo-google-fonts/space-grotesk";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import { VT323_400Regular } from "@expo-google-fonts/vt323";
 import * as SplashScreen from "expo-splash-screen";
-import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AppSplash } from "@/components/ui/AppSplash";
 import { updateExpoPushToken } from "@/lib/firestore";
+import { AchievementProvider } from "@/contexts/AchievementContext";
+import { AchievementOverlay } from "@/components/ui/achievement/AchievementOverlay";
+import { useGanadorListener } from "@/hooks/useGanadorListener";
 
 SplashScreen.preventAutoHideAsync();
 
-// Configure how notifications appear when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-if (Platform.OS === "android") {
-  Notifications.setNotificationChannelAsync("default", {
-    name: "default",
-    importance: Notifications.AndroidImportance.MAX,
+// expo-notifications requires a development build (not available in Expo Go).
+// We load it dynamically so the app doesn't crash in Expo Go.
+let Notifications: typeof import("expo-notifications") | null = null;
+try {
+  Notifications = require("expo-notifications");
+  Notifications!.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
   });
+  if (Platform.OS === "android") {
+    Notifications!.setNotificationChannelAsync("default", {
+      name: "default",
+      importance: Notifications!.AndroidImportance.MAX,
+    });
+  }
+} catch {
+  // Running in Expo Go — push notifications not supported
 }
 
 const registeredTokenUids = new Set<string>();
 
 async function registerPushToken(uid: string) {
-  if (registeredTokenUids.has(uid)) return;
+  if (!Notifications || registeredTokenUids.has(uid)) return;
   try {
     const { status } = await Notifications.requestPermissionsAsync();
     if (status !== "granted") return;
@@ -55,9 +79,15 @@ async function registerPushToken(uid: string) {
 }
 
 // Set to true to skip Firebase auth and go straight to Home (for UI development)
-const DEV_SKIP_AUTH = true;
+const DEV_SKIP_AUTH = false;
 
 const SPLASH_MIN_MS = 1000;
+
+function GanadorListenerMount() {
+  const uid = useAuthStore((s) => s.profile?.uid);
+  useGanadorListener(uid ?? null);
+  return null;
+}
 
 export default function RootLayout() {
   const router = useRouter();
@@ -66,7 +96,18 @@ export default function RootLayout() {
     useAuthStore();
   const theme = useThemeStore((s) => s.theme);
 
-  const [fontsLoaded] = useFonts({ BebasNeue: BebasNeue_400Regular });
+  const [fontsLoaded] = useFonts({
+    BebasNeue: BebasNeue_400Regular,
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    VT323_400Regular,
+  });
   const mountTimeRef = useRef(Date.now());
   const [splashReady, setSplashReady] = useState(false);
   const [splashHidden, setSplashHidden] = useState(false);
@@ -78,6 +119,7 @@ export default function RootLayout() {
         nombre: "Dev",
         apellido: "User",
         email: "dev@souche.com",
+        foto: null,
         genero: "hombre",
         rol: "superadmin",
         puntos: 500,
@@ -85,6 +127,9 @@ export default function RootLayout() {
         torneoGanado: null,
         emailVerified: true,
         fcmToken: null,
+        expoPushToken: null,
+        loginMethod: null,
+        ip: null,
         creadoEn: null,
       });
       setLoading(false);
@@ -170,11 +215,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#020805" }}>
       {/* Render app content underneath so it's ready when splash exits */}
       {splashReady && (
-        <>
+        <AchievementProvider OverlayComponent={AchievementOverlay}>
           <StatusBar style={theme === "dark" ? "light" : "dark"} />
           <Slot />
           <ToastProvider />
-        </>
+          <GanadorListenerMount />
+        </AchievementProvider>
       )}
       {!splashHidden && (
         <AppSplash isReady={splashReady} onHidden={() => setSplashHidden(true)} />
