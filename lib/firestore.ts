@@ -20,6 +20,7 @@ import {
   serverTimestamp,
   increment,
   Timestamp,
+  writeBatch,
   type Unsubscribe,
   type DocumentData,
 } from "firebase/firestore";
@@ -44,6 +45,7 @@ export interface Torneo {
   activo: boolean;
   ganadorUid: string | null;
   puntosParticipacion: number;
+  puntosCampeon: number;
   cerrado: boolean;
   creadoEn: Timestamp | null;
 }
@@ -209,7 +211,13 @@ export function subscribeToHistorialPuntos(
 }
 
 function normalizeTorneo(data: DocumentData, id: string): Torneo {
-  return { ...data, id, puntosParticipacion: data.puntosParticipacion ?? 0, cerrado: data.cerrado ?? false } as Torneo;
+  return {
+    ...data,
+    id,
+    puntosParticipacion: data.puntosParticipacion ?? 0,
+    puntosCampeon: data.puntosCampeon ?? 500,
+    cerrado: data.cerrado ?? false,
+  } as Torneo;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -317,6 +325,29 @@ export async function cerrarTorneo(
     activo: false,
   });
   return count;
+}
+
+export async function elegirGanadorDeTorneo(
+  torneoId: string,
+  ganadorUid: string,
+  torneoNombre: string,
+  puntosCampeon: number
+): Promise<void> {
+  const batch = writeBatch(db);
+  batch.update(doc(db, "torneos", torneoId), { ganadorUid });
+  batch.update(doc(db, "users", ganadorUid), {
+    ganador: true,
+    torneoGanado: torneoNombre,
+    puntos: increment(puntosCampeon),
+  });
+  const histRef = doc(collection(db, "users", ganadorUid, "historialPuntos"));
+  batch.set(histRef, {
+    puntos: puntosCampeon,
+    motivo: `Ganó ${torneoNombre}`,
+    tipo: "ganador" as PuntoTipo,
+    fecha: serverTimestamp(),
+  });
+  await batch.commit();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -545,4 +576,17 @@ export async function updateNovedad(
   data: Partial<Omit<Novedad, "id" | "creadoEn">>
 ) {
   await updateDoc(doc(db, "novedades", id), data);
+}
+
+export async function deleteNovedad(id: string) {
+  await deleteDoc(doc(db, "novedades", id));
+}
+
+export function subscribeToAllNovedades(
+  cb: (novedades: Novedad[]) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, "novedades"), orderBy("creadoEn", "desc")),
+    (snap) => cb(snap.docs.map((d) => withId<Novedad>(d.data(), d.id)))
+  );
 }
