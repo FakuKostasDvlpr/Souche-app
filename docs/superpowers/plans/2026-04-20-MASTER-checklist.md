@@ -12,7 +12,7 @@
 
 > Bloqueadores encontrados al validar los 3 planes contra Firebase MCP + Context7. Resolver ANTES de T1.1.
 
-- [ ] **PF.1** — **Rules admin-write.** Rules actuales (`users/{userId}` match) permiten write solo al dueño. Rompe `setUserAsGanador`, `addPuntosToUser`, `cerrarTorneo` desde admin. Crear `firestore.rules` en repo root:
+- [x] **PF.1** — **Rules admin-write.** ✅ Deployed 2026-04-21. Rules actuales (`users/{userId}` match) permiten write solo al dueño. Rompe `setUserAsGanador`, `addPuntosToUser`, `cerrarTorneo` desde admin. Crear `firestore.rules` en repo root:
   ```
   rules_version = '2';
   service cloud.firestore {
@@ -32,15 +32,15 @@
   }
   ```
   Deploy: `npx firebase-tools deploy --only firestore:rules --project souche-9ff0b`.
-- [ ] **PF.2** — **firebase.json root.** Si no existe en repo root, crear:
+- [x] **PF.2** — **firebase.json root.** ✅ Created 2026-04-21. Si no existe en repo root, crear:
   ```json
   {
     "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" },
     "functions": [{ "source": "functions" }]
   }
   ```
-- [ ] **PF.3** — **firestore.indexes.json.** Crear archivo vacío `{ "indexes": [], "fieldOverrides": [] }`. (Plan 3 T5 fue reescrito para evitar índice compuesto; no hacen falta índices adicionales.)
-- [ ] **PF.4** — **Context7 check librerías.** Confirmado (2026-04-20):
+- [x] **PF.3** — **firestore.indexes.json.** ✅ Created 2026-04-21. Crear archivo vacío `{ "indexes": [], "fieldOverrides": [] }`. (Plan 3 T5 fue reescrito para evitar índice compuesto; no hacen falta índices adicionales.)
+- [x] **PF.4** — **Context7 check librerías.** ✅ Verified 2026-04-20. Confirmado (2026-04-20):
   - `@testing-library/react-native` v13.3+ tiene `renderHook` sync — reemplaza `@testing-library/react-hooks` (deprecado en React 19). Plan 2 T4 ya parcheado.
   - Reanimated 4.1.5: `useSharedValue`, `withSequence`, `withTiming`, `runOnJS` — API estable, compatible con Plan 1.
   - Firebase JS SDK v12: `where != null + orderBy` combinación requiere índice compuesto. Plan 3 T5 reescrito con `orderBy creadoEn desc + limit 20 + client filter`.
@@ -54,15 +54,15 @@
 **Archivo:** `docs/superpowers/plans/2026-04-20-plan-1-achievement-component.md`
 **Meta:** Provider + overlay Minecraft + listener Firestore + `elegirGanadorDeTorneo`.
 
-- [ ] **T1.1** — Setup jest + jest-expo + ts-jest (config + smoke test).
-- [ ] **T1.2** — `lib/achievementQueue.ts` — FIFO pure logic + 6 tests TDD.
-- [ ] **T1.3** — `contexts/AchievementContext.tsx` — Provider + `useAchievement()`.
-- [ ] **T1.4** — `components/ui/achievement/AchievementParticles.tsx` — 24 partículas Reanimated.
-- [ ] **T1.5** — `components/ui/achievement/AchievementShimmer.tsx` — Sweep diagonal.
-- [ ] **T1.6** — `components/ui/achievement/AchievementOverlay.tsx` — FSM 5 fases + haptics.
-- [ ] **T1.7** — `hooks/useGanadorListener.ts` — onSnapshot users/{uid} + AsyncStorage dedupe.
-- [ ] **T1.8** — Extender `lib/firestore.ts` — `elegirGanadorDeTorneo` con writeBatch. **Requiere PF.1 deployed** (rules admin-write sobre `users/{uid}`).
-- [ ] **T1.9** — Modificar `app/_layout.tsx` — Montar `AchievementProvider` + `useGanadorListener`.
+- [x] **T1.1** — Setup jest + jest-expo + ts-jest (config + smoke test). ✅
+- [x] **T1.2** — `lib/achievementQueue.ts` — FIFO pure logic + 6 tests TDD. ✅
+- [x] **T1.3** — `contexts/AchievementContext.tsx` — Provider + `useAchievement()`. ✅
+- [x] **T1.4** — `components/ui/achievement/AchievementParticles.tsx` — 24 partículas Reanimated. ✅
+- [x] **T1.5** — `components/ui/achievement/AchievementShimmer.tsx` — Sweep diagonal. ✅
+- [x] **T1.6** — `components/ui/achievement/AchievementOverlay.tsx` — FSM 5 fases + haptics. ✅
+- [x] **T1.7** — `hooks/useGanadorListener.ts` — onSnapshot users/{uid} + AsyncStorage dedupe. ✅
+- [x] **T1.8** — Extender `lib/firestore.ts` — `elegirGanadorDeTorneo` con writeBatch. ✅
+- [x] **T1.9** — Modificar `app/_layout.tsx` — Montar `AchievementProvider` + `useGanadorListener`. ✅
 - [ ] **T1.10** — Manual QA + crear PR `feat/achievement-component`.
 
 **Gate:** PR 1 mergeado antes de empezar Plan 2.
